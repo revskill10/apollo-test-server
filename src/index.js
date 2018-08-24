@@ -34,7 +34,7 @@ let messages = {
   },
 };
 
-//let me = users[1];
+let me = users[1];
 
 const app = express();
 app.use(cors());
@@ -113,7 +113,6 @@ const resolvers = {
         text,
         userId: me.id,
       };
-      messages[id] = message;
       users[me.id].messageIds.push(id);
       pubsub.publish(EVENTS.MESSAGE.CREATED, {
         messageCreated: { message },
@@ -134,7 +133,12 @@ const resolvers = {
   },
   Subscription: {
     messageCreated: {
-      subscribe: () => pubsub.asyncIterator(EVENTS.MESSAGE.CREATED),
+      subscribe: () => {                
+        pubsub.publish(EVENTS.MESSAGE.CREATED, {
+          messageCreated: { message: messages[1] },
+        });
+        return pubsub.asyncIterator(EVENTS.MESSAGE.CREATED);
+      },
     },
   },
 };
@@ -142,8 +146,18 @@ const resolvers = {
 const server = new ApolloServer({
   typeDefs: schema,
   resolvers,
-  context: {
-    me: users[1],
+  context: async ({ req, connection }) => {
+    if (connection) {
+      return {
+        me,
+      };
+    }
+
+    if (req) {
+      return {
+        me,
+      };
+    }
   },
 });
 
